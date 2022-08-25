@@ -90,6 +90,41 @@ pdf(file = "E:/work/Tcell/UMAP_activated_T_Tissue.pdf", width = 25, height = 18)
 h1<-DimPlot(immune.combined, group.by = "Tissue")
 h1
 dev.off()
+#######################################################
+######################################################
+### Co-expression network
+#test <- pmbc.updated@assays$RNA@counts
+
+
+
+#scenicOptions
+
+install.packages("arrow")
+library(arrow)
+install_arrow(verbose=TRUE)
+
+#install.packages("foreach")
+#library(foreach)
+#org <- "hgnc" #mgi  hgnc
+#dbDir <- "cisTarget_databases" # RcisTarget databases location
+#myDatasetTitle <- "SCENIC example on Tcell" # choose a name for your analysis
+#data(defaultDbNames)
+#dbs <- defaultDbNames[[org]]
+install.packages("SCENIC")
+install.packages("dynamicTreeCut")
+library(dynamicTreeCut)
+########################################
+library(SCENIC)
+scenicOptions <- initializeScenic(org= "hgnc" , dbDir="cisTarget_databases" , nCores=5) 
+
+########################### 
+exprMat<-immune.combined@assays$RNA@counts
+#
+genesKept <- geneFiltering(exprMat, scenicOptions)
+exprMat_filtered <- exprMat[genesKept, ]
+runCorrelation(exprMat_filtered, scenicOptions)
+exprMat_filtered_log <- log2(exprMat_filtered+1) 
+runGenie3(exprMat_filtered_log, scenicOptions)
 
 
 
@@ -112,16 +147,14 @@ devtools::install_github("aertslab/SCopeLoomR", build_vignettes =TRUE)
 head(immune.combined[["RNA"]]@dcounts)
 BiocManager::install("SCopeLoomR")
 install.packages("SCopeLoomR")
+devtools::install_github("aertslab/SCopeLoomR")
+
 library(SCopeLoomR)
 build_loom(file.name = "tcell.loom",
            dgem = immune.combined@assays$RNA@counts,
            title = "tcellloom",
            default.embedding = immune.combined@reductions$umap.rna@cell.embeddings,
            default.embedding.name = "umap.rna")
-
-
-
-
 
 
 
