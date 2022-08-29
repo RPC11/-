@@ -142,6 +142,43 @@ scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, exprMat_log)
 
 
 
+# Optional: Binarize activity
+# aucellApp <- plotTsne_AUCellApp(scenicOptions, exprMat_log)
+# savedSelections <- shiny::runApp(aucellApp)
+# newThresholds <- savedSelections$thresholds
+# scenicOptions@fileNames$int["aucell_thresholds",1] <- "int/newThresholds.Rds"
+# saveRDS(newThresholds, file=getIntName(scenicOptions, "aucell_thresholds"))
+scenicOptions <- runSCENIC_4_aucell_binarize(scenicOptions)
+tsneAUC(scenicOptions, aucType="AUC") # choose settings
+
+# Export:
+# saveRDS(cellInfo, file=getDatasetInfo(scenicOptions, "cellInfo")) # Temporary, to add to loom
+export2loom(scenicOptions, exprMat)
+
+# To save the current status, or any changes in settings, save the object again:
+saveRDS(scenicOptions, file="int/scenicOptions.Rds") 
+
+### Exploring output 
+# Check files in folder 'output'
+# Browse the output .loom file @ http://scope.aertslab.org
+
+# output/Step2_MotifEnrichment_preview.html in detail/subset:
+motifEnrichment_selfMotifs_wGenes <- loadInt(scenicOptions, "motifEnrichment_selfMotifs_wGenes")
+tableSubset <- motifEnrichment_selfMotifs_wGenes[highlightedTFs=="Sox8"]
+viewMotifs(tableSubset) 
+
+# output/Step2_regulonTargetsInfo.tsv in detail: 
+regulonTargetsInfo <- loadInt(scenicOptions, "regulonTargetsInfo")
+tableSubset <- regulonTargetsInfo[TF=="Stat6" & highConfAnnot==TRUE]
+viewMotifs(tableSubset) 
+
+# Cell-type specific regulators (RSS): 
+regulonAUC <- loadInt(scenicOptions, "aucell_regulonAUC")
+rss <- calcRSS(AUC=getAUC(regulonAUC), cellAnnotation=cellInfo[colnames(regulonAUC), "CellType"], )
+rssPlot <- plotRSS(rss)
+plotly::ggplotly(rssPlot$plot)
+
+
 #################################################################
 ############################################################################
 ########################################################################
