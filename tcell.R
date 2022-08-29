@@ -1,14 +1,15 @@
 install.packages("rlist")
 install.packages("Seurat")
+install.packages("SCENIC")
 library(rlist)
 library(Matrix)
-
-library(Seurat)
 library(tidyverse)
 library(data.table)
 library(Seurat)
 library(tidyverse)
 library(data.table)
+library(RcisTarget)
+library(SCENIC)
 
 set.seed(221)
 ##
@@ -20,6 +21,10 @@ count_combined <- rlist::list.cbind(raw_count_list)
 #Initialize the Seurat object
 state_seurat <- CreateSeuratObject(count_combined, project = "SeuratProject", assay = "RNA",
                                    min.cells = 10, min.features = 1, meta.data = NULL)
+#############
+state_seurat@assays
+
+
 # Initialize the Seurat object
 state_seurat[["percent.mt"]] <- PercentageFeatureSet(state_seurat, pattern = "^MT-")
 
@@ -94,44 +99,52 @@ dev.off()
 ######################################################
 ### Co-expression network
 #test <- pmbc.updated@assays$RNA@counts
-
-
-
 #scenicOptions
-
-install.packages("arrow")
-library(arrow)
-install_arrow(verbose=TRUE)
-
-#install.packages("foreach")
-#library(foreach)
 #org <- "hgnc" #mgi  hgnc
 #dbDir <- "cisTarget_databases" # RcisTarget databases location
 #myDatasetTitle <- "SCENIC example on Tcell" # choose a name for your analysis
 #data(defaultDbNames)
 #dbs <- defaultDbNames[[org]]
-install.packages("SCENIC")
-install.packages("dynamicTreeCut")
-library(dynamicTreeCut)
 ########################################
+library(RcisTarget)
+#download the feather files
+#dbFiles <- c("https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-500bp-upstream-7species.mc9nr.genes_vs_motifs.rankings.feather",
+ #            "https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-tss-centered-10kb-7species.mc9nr.feather")
+# mc9nr: Motif collection version 9: 24k motifs
+#dir.create("cisTarget_databases"); setwd("cisTarget_databases") # if needed
+#for(featherURL in dbFiles)
+#{
+ # download.file(featherURL, destfile=basename(featherURL)) # saved in current dir
+#}
 library(SCENIC)
 scenicOptions <- initializeScenic(org= "hgnc" , dbDir="cisTarget_databases" , nCores=5) 
-
-########################### 
 exprMat<-immune.combined@assays$RNA@counts
-#
+
+
+############################################################################## 
+
+#Co-expression network
 genesKept <- geneFiltering(exprMat, scenicOptions)
 exprMat_filtered <- exprMat[genesKept, ]
 runCorrelation(exprMat_filtered, scenicOptions)
 exprMat_filtered_log <- log2(exprMat_filtered+1) 
 runGenie3(exprMat_filtered_log, scenicOptions)
 
+### Build and score the GRN
+exprMat_log <- log2(exprMat+1)
+scenicOptions@settings$dbs <- scenicOptions@settings$dbs["10kb"] # Toy run settings
+scenicOptions <- runSCENIC_1_coexNetwork2modules(scenicOptions)
+scenicOptions <- runSCENIC_2_createRegulons(scenicOptions, coexMethod=c("top5perTarget")) # Toy run settings
+scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, exprMat_log)
 
 
-class(immune.combined@assays$RNA@counts)
 
+
+
+
+#################################################################
 ############################################################################
-
+########################################################################
 #Expression matrix of the top five genes from the top five cells
 immune.combined@assays$RNA@counts[1:5,1:5]
 #Cells and genes after PCA analysis were visualized
@@ -139,22 +152,7 @@ VizDimLoadings(immune.combined, dims = 1:2, reduction = "pca")
 #head(pbmc@reductions$pca@cell.embeddings)
 #immune.combined[["RNA"]]@counts
 
-###############################################
-install.packages("devtools")
-devtools::install_github("aertslab/SCopeLoomR")
-devtools::install_github("aertslab/SCopeLoomR", build_vignettes =TRUE)
-####################################
-head(immune.combined[["RNA"]]@dcounts)
-BiocManager::install("SCopeLoomR")
-install.packages("SCopeLoomR")
-devtools::install_github("aertslab/SCopeLoomR")
 
-library(SCopeLoomR)
-build_loom(file.name = "tcell.loom",
-           dgem = immune.combined@assays$RNA@counts,
-           title = "tcellloom",
-           default.embedding = immune.combined@reductions$umap.rna@cell.embeddings,
-           default.embedding.name = "umap.rna")
 
 
 
@@ -205,37 +203,8 @@ packageVersion("SCENIC")
 ###############################################
 
 
-library(GENIE3)
-
-head(immune.combined[["RNA"]]@counts)
-immune.combined[["RNA"]]@counts[1:5,1:5]
-dim(immune.combined[["RNA"]]@counts)
-
-#########################################
-network = grnboost2(expression_data=ex_matrix,
-                    tf_names=tf_names)
 
 
 
-#########################
-#GENIE3  Transcriptional regulatory network analysis
-set.seed(123)
-weightMat <- GENIE3(as.matrix(immune.combined[["RNA"]]@counts[1:50,1:50]),nCores=4,nTrees=50)
-dim(weightMat)
-weightMat
-#############################################
-library(SCopeLoomR)
-##Parameters are sufficient to add information：
-loom <- open_loom(file.name)
-add_hierarchy(loom = loom, hierarchy = create_hierarchy(level.1.name = "Mouse", level.2.name = "Toy Datasets", level.3.name = ""))
-add_col_attr(loom=loom, key = "Cell type", value=cell.info$cellType, as.annotation=T)
-###Add Seurat information
-seurat.annotation<-read.table(file = paste0(seuratDir, "Res2_Clusters.tsv", header=T, quote = '', sep = "\t", stringsAsFactors=F))
-add_seurat_clustering(loom = loom
-                      , seurat = seurat
-                      , default.clustering.resolution = "res.2"
-                      , annotation = seurat.annotation
-                      , annotation.cluster.id.cn = "res.2" 
-                      , annotation.cluster.description.cn = "Annotation")
 
 
