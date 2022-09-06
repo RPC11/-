@@ -75,8 +75,20 @@ immune.combined <- RunUMAP(immune.combined, reduction = "pca", dims = 1:30)
 immune.combined <- FindNeighbors(immune.combined, reduction = "pca", dims = 1:30)
 immune.combined <- FindClusters(immune.combined, resolution = 0.5)
 immune.combined<-RunTSNE(immune.combined, reduction = "pca", dims = 1:30)
+###########################################################
+h<-DimPlot(immune.combined, group.by = "State")
+h
+#Use TSNE for classification
+t<-DimPlot(immune.combined,reduction = "tsne",group.by = "State")
+t
+# Plot a legend to map colors to expression levels 
+FeaturePlot(immune.combined, features = c("CD8A","CD8B", "CD4"))
+
+
+
 ##################################################################################
 ####################################################################################3
+
 # The 10 genes with the most dramatic changes in expression
 top10 <- head(VariableFeatures(immune.combined), 10) 
 top10
@@ -86,7 +98,7 @@ print(immune.combined[["pca"]], dims = 1:5, nfeatures = 5)
 DimPlot(immune.combined, reduction = "pca",split.by = 'ident')
 #heatmap
 DimHeatmap(immune.combined, dims = 1, cells = 500, balanced = TRUE)
-#################################
+
 
 # find markers for every cluster compared to all remaining cells, report only the positive ones
 immune.combined.markers  <- FindAllMarkers(immune.combined, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
@@ -101,6 +113,4 @@ new.cluster.ids <- c("IL7R",	"IFIT3",	"LTA",	"SRM",	"BNIP3",	"HSPE1",
 names(new.cluster.ids) <- levels(immune.combined)
 immune.combined <- RenameIdents(immune.combined, new.cluster.ids)
 DimPlot(immune.combined, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
-
-
-
+#DEG
